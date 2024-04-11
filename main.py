@@ -219,7 +219,7 @@ def download(bucket, dbConn, asset_id, display):
   """
   asset = datatier.retrieve_one_row(dbConn, sql, [asset_id])
 
-  if asset is None:
+  if asset is None or not asset:
       print("No such asset...")
       return
   
@@ -235,7 +235,7 @@ def download(bucket, dbConn, asset_id, display):
   # Rename asset
   os.rename(downloaded_asset, asset_name)
 
-  print(f"Downloaded from S3 and saved as: ' {asset_name} '")
+  print(f"Downloaded from S3 and saved as ' {asset_name} '")
 
   # Display image if necessary
   if (display):
@@ -314,23 +314,45 @@ def upload(bucket, dbConn, local_filename, user_id):
 #
 # add user
 #
-def add_user(bucketname, bucket, endpoint, dbConn):
+def add_user(bucket, dbConn, email, lastname, firstname):
   """
   Prints out S3 and RDS info: bucket name, # of assets, RDS 
   endpoint, and # of users and assets in the database
   
   Parameters
   ----------
-  bucketname: S3 bucket name,
   bucket: S3 boto bucket object,
-  endpoint: RDS machine name,
   dbConn: open connection to MySQL server
+  email: user's email
+  lastname: user's last (family) name
+  firstname: user's first (given) name
   
   Returns
   -------
   nothing
   """
 
+  # Generate bucketfolder using UUID
+  bucketfolder = str(uuid.uuid4())
+
+  # Insert information into database
+  sql = """
+  INSERT INTO 
+  users(email, lastname, firstname, bucketfolder)
+  values(%s,%s,%s,%s);
+  """
+
+  result = datatier.perform_action(dbConn, sql, [email, lastname, firstname, bucketfolder])
+
+  # Check if successfully inserted information
+  if result is None:
+    print("Error inserting information to database...")
+    return
+  
+  # Get the user id
+  user_id = datatier.retrieve_one_row(dbConn, "SELECT LAST_INSERT_ID();")[0]
+
+  print(f"Recorded in RDS under user id {user_id}")
 
 #########################################################################
 # main
@@ -410,12 +432,12 @@ while cmd != 0:
   elif cmd ==4:
     # Prompt for asset id
     print("Enter asset id>")
-    asset_id = int(input())
+    asset_id = input()
     download(bucket, dbConn, asset_id, False)
   elif cmd ==5:
     # Prompt for asset id
     print("Enter asset id>")
-    asset_id = int(input())
+    asset_id = input()
     download(bucket, dbConn, asset_id, True)
   elif cmd ==6:
     # Prompt for local filename
@@ -423,15 +445,20 @@ while cmd != 0:
     local_filename = input()
     if not pathlib.Path(local_filename).is_file():
        print(f"Local file ' {local_filename} ' does not exist...")
-       sys.exit(0)
-    # Prompt for user id
-    print("Enter user id>")
-    user_id = input()
-    # if user id does not exist
-    # print("No such user...")
-    upload(bucket, dbConn, local_filename, user_id)
+    else:
+      # Prompt for user id
+      print("Enter user id>")
+      user_id = input()
+      upload(bucket, dbConn, local_filename, user_id)
   elif cmd ==7:
-    add_user(bucketname, bucket, endpoint, dbConn)
+    # Prompt for user email, last name, first name
+    print("Enter user's email>")
+    email = input()
+    print("Enter user's last (family) name>")
+    lastname = input()
+    print("Enter user's first (given) name>")
+    firstname = input()
+    add_user(bucket, dbConn, email, lastname, firstname)
   else:
     print("** Unknown command, try again...")
   #
