@@ -103,9 +103,9 @@
 --          'sushisleep.jpg',
 --          '86c4958e-b446-4985-9be0-9a1706b6ab83/dfba0566-9180-476b-801e-f7907c69ab35.jpg');
 
--- USE photoapp;
+USE photoapp;
 
--- SELECT * FROM assets;
+SELECT * FROM assets;
 
 --
 -- adds two users to the database, one for read-only access and
@@ -117,17 +117,17 @@
 -- ref: https://dev.mysql.com/doc/refman/8.0/en/create-user.html
 --
 
-USE photoapp;
+-- USE photoapp;
 
-DROP USER IF EXISTS 'photoapp-read-only';
-DROP USER IF EXISTS 'photoapp-read-write';
+-- DROP USER IF EXISTS 'photoapp-read-only';
+-- DROP USER IF EXISTS 'photoapp-read-write';
 
-CREATE USER 'photoapp-read-only' IDENTIFIED BY 'abc123!!';
-CREATE USER 'photoapp-read-write' IDENTIFIED BY 'def456!!';
+-- CREATE USER 'photoapp-read-only' IDENTIFIED BY 'abc123!!';
+-- CREATE USER 'photoapp-read-write' IDENTIFIED BY 'def456!!';
 
-GRANT SELECT, SHOW VIEW ON photoapp.* 
-      TO 'photoapp-read-only';
-GRANT SELECT, SHOW VIEW, INSERT, UPDATE, DELETE ON photoapp.* 
-      TO 'photoapp-read-write';
+-- GRANT SELECT, SHOW VIEW ON photoapp.* 
+--       TO 'photoapp-read-only';
+-- GRANT SELECT, SHOW VIEW, INSERT, UPDATE, DELETE ON photoapp.* 
+--       TO 'photoapp-read-write';
       
-FLUSH PRIVILEGES;
+-- FLUSH PRIVILEGES;

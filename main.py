@@ -112,7 +112,7 @@ def stats(bucketname, bucket, endpoint, dbConn):
   if user_count is None:
       print("Failure to receive user count...")
   else:
-      print("# of users:", user_count)
+      print(f"# of users: {user_count}")
 
   # Query to retrieve the number of assets
   asset_count_query = """
@@ -124,7 +124,7 @@ def stats(bucketname, bucket, endpoint, dbConn):
   if asset_count is None:
       print("Failure to retrieve asset count...")
   else:
-      print("# of assets:", asset_count)
+      print(f"# of assets: {asset_count}")
 
 ###################################################################
 #
@@ -144,11 +144,11 @@ def users(dbConn):
   """
 
   # Query to retrieve users in descending order by user id
-  sql_query = """
+  sql = """
   SELECT userid, email, lastname, firstname, bucketfolder FROM users ORDER BY userid DESC;
   """
   # Get all the users
-  users = datatier.retrieve_all_rows(dbConn, sql_query)
+  users = datatier.retrieve_all_rows(dbConn, sql)
 
   if users is None:
       print("Failed to retrieve user info...")
@@ -178,11 +178,11 @@ def assets(dbConn):
   """
 
   # Query to retrieve assets in descending order by asset id
-  sql_query = """
+  sql = """
   SELECT assetid, userid, assetname, bucketkey FROM assets ORDER BY assetid DESC;
   """
   # Get all the users
-  assets = datatier.retrieve_all_rows(dbConn, sql_query)
+  assets = datatier.retrieve_all_rows(dbConn, sql)
 
   if assets is None:
       print("Failed to retrieve asset info...")
@@ -214,10 +214,10 @@ def download(bucket, dbConn, asset_id, display):
   nothing
   """
   # Look up asset in the database and retrieve
-  sql_query = """
+  sql = """
   SELECT assetname, bucketkey FROM assets WHERE assetid = %s;
   """
-  asset = datatier.retrieve_one_row(dbConn, sql_query, [asset_id])
+  asset = datatier.retrieve_one_row(dbConn, sql, [asset_id])
 
   if asset is None:
       print("No such asset...")
@@ -265,6 +265,50 @@ def upload(bucket, dbConn, local_filename, user_id):
   -------
   nothing
   """
+
+  # Check that the user_id is valid
+  sql = """
+  SELECT COUNT(*), bucketfolder FROM users WHERE userid = %s;
+  """
+  result = datatier.retrieve_one_row(dbConn, sql, [user_id])
+  count, bucketfolder = result
+
+  if count == 0:
+      print(f"No such user...")
+      return
+  
+  # Generate filename using UUID, create key
+  filename = str(uuid.uuid4()) + ".jpg"
+  key = bucketfolder + "/" + filename
+
+  # Upload file
+  uploaded_key = awsutil.upload_file(local_filename, bucket, key)
+
+  # Check if successfully uploaded
+  if uploaded_key is None:
+    print("Error uploading file to S3...")
+    return
+  
+  # Insert information into database
+  sql = """
+  INSERT INTO 
+  assets(userid, assetname, bucketkey)
+  values(%s,%s,%s);
+  """
+
+  result = datatier.perform_action(dbConn, sql, [user_id, local_filename, key])
+
+  # Check if successfully inserted information
+  if result is None:
+    print("Error inserting information to database...")
+    return
+  
+  # Get the asset id
+  asset_id = datatier.retrieve_one_row(dbConn, "SELECT LAST_INSERT_ID();")[0]
+
+  print(f"Uploaded and stored in S3 as ' {key} '")
+  print(f"Recorded in RDS under asset id {asset_id}")
+
 
 ###################################################################
 #
@@ -377,9 +421,14 @@ while cmd != 0:
     # Prompt for local filename
     print("Enter local filename>")
     local_filename = input()
+    if not pathlib.Path(local_filename).is_file():
+       print(f"Local file ' {local_filename} ' does not exist...")
+       sys.exit(0)
     # Prompt for user id
     print("Enter user id>")
-    user_id = int(input())
+    user_id = input()
+    # if user id does not exist
+    # print("No such user...")
     upload(bucket, dbConn, local_filename, user_id)
   elif cmd ==7:
     add_user(bucketname, bucket, endpoint, dbConn)
